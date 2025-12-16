@@ -161,7 +161,20 @@ const verifyMANAGER = async (req, res, next) => {
       res.send(result);
     });
 
+app.get("/admin-seed/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await usersCollection.updateOne(
+        { email },
+        { $set: { role: "admin" } }
+      );
+      res.send(result);
+    });
 
+    app.get("/user/role", verifyJWT, async (req, res) => {
+      const result = await usersCollection.findOne({ email: req.tokenEmail });
+      res.send({ role: result?.role });
+    });
+    
   } catch (err) {
     console.log(err);
   } finally {
