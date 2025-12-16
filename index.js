@@ -342,6 +342,43 @@ app.get("/admin-seed/:email", async (req, res) => {
 
       res.send(result);
     });
+
+    app.patch('/suspend-user/:email', verifyJWT, verifyADMIN, async (req, res) => {
+          const email = req.params.email;
+          const { reason, feedback } = req.body;
+    
+          const result = await usersCollection.updateOne(
+            { email },
+            {
+              $set: {
+                role: "suspended",
+                suspendReason: reason,
+                suspendFeedback: feedback
+              }
+            }
+          );
+    
+          res.send(result);
+        });
+    
+    
+        app.patch("/update-loan/:id", verifyJWT, async (req, res) => {
+          try {
+            const { id } = req.params;
+            const updateData = req.body;
+    
+            const result = await loanCollection.updateOne(
+              { _id: new ObjectId(id) },
+              { $set: updateData }
+            );
+    
+            res.send(result);
+          } catch (err) {
+            console.error(err);
+            res.status(500).send({ message: "Failed to update loan" });
+          }
+        });
+    
   } catch (err) {
     console.log(err);
   } finally {
