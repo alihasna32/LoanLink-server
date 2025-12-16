@@ -100,7 +100,21 @@ const verifyMANAGER = async (req, res, next) => {
         res.status(500).send({ message: "Failed to fetch available loans" });
       }
     });
+    app.get("/all-loans", async (req, res) => {
+          const { limit = 0, skip = 0 } = req.query
+          const result = await loanCollection.find().limit(Number(limit)).skip(Number(skip)).toArray();
+          res.send(result);
+        });
     
+    
+        app.get("/all-loans/:id", async (req, res) => {
+          const id = req.params.id;
+    
+          const result = await loanCollection.findOne({ _id: new ObjectId(id) });
+          res.send(result);
+        });
+    
+
   } catch (err) {
     console.log(err);
   } finally {
