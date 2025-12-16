@@ -306,6 +306,42 @@ app.get("/admin-seed/:email", async (req, res) => {
               }
             });
 
+            // admin related apis
+    // 
+
+    app.get("/manage-users", verifyJWT, verifyADMIN, async (req, res) => {
+      const search = req.query.search || "";
+      const role = req.query.role || "all";
+
+      let query = {};
+
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } }
+        ];
+      }
+
+      if (role !== "all") {
+        query.role = role;
+      }
+
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
+
+    app.patch('/update-role/:email', verifyJWT, verifyADMIN, async (req, res) => {
+      const email = req.params.email;
+      const { role } = req.body;
+
+      const result = await usersCollection.updateOne(
+        { email },
+        { $set: { role } }
+      );
+
+      res.send(result);
+    });
   } catch (err) {
     console.log(err);
   } finally {
