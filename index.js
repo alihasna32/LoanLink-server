@@ -113,7 +113,54 @@ const verifyMANAGER = async (req, res, next) => {
           const result = await loanCollection.findOne({ _id: new ObjectId(id) });
           res.send(result);
         });
-    
+    app.post("/loan-application", verifyJWT, async (req, res) => {
+      try {
+        const applicationData = req.body;
+
+
+        applicationData.status = "Pending";
+        applicationData.applicationFeeStatus = "Unpaid";
+        applicationData.userEmail = req.tokenEmail;
+        applicationData.createdAt = new Date();
+
+        const result = await applicationCollection.insertOne(applicationData);
+        res.send(result);
+      } catch (err) {
+        console.log(err);
+        res.status(500).send({ message: "Failed to submit loan application" });
+      }
+    });
+
+    // save user in db
+
+    app.post("/user", async (req, res) => {
+      const userData = req.body;
+      userData.created_at = new Date().toISOString();
+      userData.last_loggedIn = new Date().toISOString();
+      userData.role = userData.role || "borrower";
+
+      const query = {
+        email: userData.email,
+      };
+
+      const alreadyExists = await usersCollection.findOne(query);
+      console.log("User Already Exists---> ", !!alreadyExists);
+
+      if (alreadyExists) {
+        console.log("Updating user info......");
+        const result = await usersCollection.updateOne(query, {
+          $set: {
+            last_loggedIn: new Date().toISOString(),
+          },
+        });
+        return res.send(result);
+      }
+
+      console.log("Saving new user info......");
+      const result = await usersCollection.insertOne(userData);
+      res.send(result);
+    });
+
 
   } catch (err) {
     console.log(err);
