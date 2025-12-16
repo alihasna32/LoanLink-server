@@ -2,7 +2,16 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const admin = require("firebase-admin");
 const port = process.env.PORT || 3000;
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
+  "utf-8"
+);
+const serviceAccount = JSON.parse(decoded);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 const app = express();
 // middleware
@@ -221,6 +230,81 @@ app.get("/admin-seed/:email", async (req, res) => {
           }
         });
     
+        // Payment endpoints
+            app.post('/create-checkout-session', verifyJWT, async (req, res) => {
+              const paymentInfo = req.body;
+              try {
+                const session = await stripe.checkout.sessions.create({
+                  line_items: [
+                    {
+                      price_data: {
+                        currency: 'usd',
+                        product_data: {
+                          name: `Loan Application Fee - ${paymentInfo.loanId}`,
+                          description: 'Microloan Application Fee',
+                        },
+                        unit_amount: paymentInfo.amount * 100, // amount in cents
+                      },
+                      quantity: 1,
+                    },
+                  ],
+                  customer_email: paymentInfo.email,
+                  mode: 'payment',
+                  metadata: {
+                    loanId: paymentInfo.loanId,
+                    customerEmail: paymentInfo.email,
+                  },
+                  success_url: `${process.env.CLIENT_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+                  cancel_url: `${process.env.CLIENT_DOMAIN}/dashboard/my-loans`,
+                });
+        
+                res.send({ url: session.url });
+              } catch (err) {
+                console.error("Stripe Error:", err);
+                res.status(500).send({ message: 'Failed to create Stripe session', error: err.message });
+              }
+            });
+        
+        
+            app.post('/payment-success', verifyJWT, async (req, res) => {
+              try {
+                const { sessionId } = req.body;
+        
+                if (!sessionId) return res.status(400).send({ error: 'Session ID missing' });
+        
+        
+                const session = await stripe.checkout.sessions.retrieve(sessionId);
+        
+        
+                const loanId = session.metadata.loanId;
+                const email = session.customer_email;
+        
+        
+                const result = await applicationCollection.updateOne(
+                  { _id: new ObjectId(loanId) },
+                  {
+                    $set: {
+                      applicationFeeStatus: 'Paid',
+                      paymentInfo: {
+                        transactionId: session.payment_intent,
+                        email,
+                        amount: session.amount_total / 100,
+                        paymentDate: new Date(),
+                      },
+                    },
+                  }
+                );
+        
+                if (result.modifiedCount === 0) {
+                  return res.status(404).send({ error: 'Loan application not found' });
+                }
+        
+                res.send({ success: true });
+              } catch (err) {
+                console.error('Payment verification error:', err);
+                res.status(500).send({ error: 'Payment verification failed' });
+              }
+            });
 
   } catch (err) {
     console.log(err);
