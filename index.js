@@ -174,7 +174,54 @@ app.get("/admin-seed/:email", async (req, res) => {
       const result = await usersCollection.findOne({ email: req.tokenEmail });
       res.send({ role: result?.role });
     });
+    // borrower apis
     
+        app.get("/my-loans/:email", verifyJWT, async (req, res) => {
+          try {
+            const email = req.params.email;
+    
+            if (email !== req.tokenEmail) {
+              return res.status(403).send({ message: "Forbidden access" });
+            }
+    
+            const result = await applicationCollection
+              .find({ userEmail: email })
+              .sort({ createdAt: -1 })
+              .toArray();
+    
+            res.send(result);
+          } catch (err) {
+            console.log(err);
+            res.status(500).send({ message: "Failed to fetch loans" });
+          }
+        });
+    
+        app.patch("/loan-application/:id", verifyJWT, async (req, res) => {
+          try {
+            const { id } = req.params;
+            const updateData = req.body;
+    
+            const loan = await applicationCollection.findOne({
+              _id: new ObjectId(id),
+            });
+    
+            if (!loan) return res.status(404).send({ message: "Loan not found" });
+            if (loan.userEmail !== req.tokenEmail)
+              return res.status(403).send({ message: "Forbidden" });
+    
+            const result = await applicationCollection.updateOne(
+              { _id: new ObjectId(id) },
+              { $set: updateData }
+            );
+    
+            res.send(result);
+          } catch (err) {
+            console.log(err);
+            res.status(500).send({ message: "Failed to update loan" });
+          }
+        });
+    
+
   } catch (err) {
     console.log(err);
   } finally {
