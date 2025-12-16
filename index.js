@@ -68,6 +68,39 @@ const verifyMANAGER = async (req, res, next) => {
       next()
     }
 
+    app.post("/all-loans", async (req, res) => {
+      const loanData = req.body;
+      const result = await loanCollection.insertOne(loanData);
+      res.send(result);
+    });
+
+
+    app.get("/available-loans", async (req, res) => {
+      try {
+
+        let result = await loanCollection
+          .find({ showOnHome: true })
+          .sort({ _id: -1 })
+          .toArray();
+
+
+        if (result.length < 6) {
+          const excludeIds = result.map((loan) => loan._id);
+          const remaining = await loanCollection
+            .find({ _id: { $nin: excludeIds } })
+            .limit(6 - result.length)
+            .toArray();
+
+          result = [...result, ...remaining];
+        }
+
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Failed to fetch available loans" });
+      }
+    });
+    
   } catch (err) {
     console.log(err);
   } finally {
