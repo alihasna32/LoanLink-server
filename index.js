@@ -15,10 +15,9 @@ admin.initializeApp({
 
 const app = express();
 // middleware
-app.use(
-  cors({
+app.use(cors({
     // origin:"loanlink-project-323.netlify.app",
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "https://new-practice-auth.web.app/"],
     credentials: true,
   })
 );
